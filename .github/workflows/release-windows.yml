@@ -1,0 +1,38 @@
+name: Release Windows
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build portable executable
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          go build -trimpath -ldflags="-s -w" -o dist/ufc.exe ./cmd/ufc
+        shell: pwsh
+
+      - name: Package ZIP
+        run: Compress-Archive -Path dist/ufc.exe -DestinationPath dist/ufc-windows-amd64.zip
+        shell: pwsh
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/ufc-windows-amd64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
