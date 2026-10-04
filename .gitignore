@@ -1,0 +1,11 @@
+.codegraph/
+node_modules/
+
+# build
+bin/
+*.exe
+
+# generated dataset (rebuild with: go run ./cmd/ufc-sync)
+data/
+
+*.log
