@@ -478,13 +478,18 @@ func TestNoViewOverflowsTheWidth(t *testing.T) {
 	}
 }
 
-func TestHelpLineKeepsTheTabNumbersWhenItCan(t *testing.T) {
-	for _, v := range viewNames {
-		m := Model{width: 80, height: 30, current: view(indexOfView(v))}
-		got := m.helpView()
-		for i, name := range viewNames {
-			if !strings.Contains(got, strconv.Itoa(i+1)+" ") {
-				t.Errorf("view %s: help dropped the number for %q: %q", v, name, stripANSI(got))
+func TestHeaderShowsEveryTabNumber(t *testing.T) {
+	for _, w := range []int{80, 60, 40, 24} {
+		for v := range viewNames {
+			m := Model{width: w, height: 30, current: view(v)}
+			got := stripANSI(m.tabsRow(w))
+			for i := range viewNames {
+				if w >= 40 && !strings.Contains(got, strconv.Itoa(i+1)) {
+					t.Errorf("width %d, view %s: tabs dropped number %d: %q", w, viewNames[v], i+1, got)
+				}
+			}
+			if w >= 40 && !strings.Contains(got, viewNames[v]) {
+				t.Errorf("width %d: active tab %q lost its name: %q", w, viewNames[v], got)
 			}
 		}
 	}
@@ -526,11 +531,6 @@ func TestHelpLineShowsCardKeysOnCardView(t *testing.T) {
 	}
 	if got := press(t, m, "5").helpView(); !strings.Contains(got, "↑/↓ eventos") {
 		t.Errorf("results view does not advertise the event keys: %q", got)
-	}
-	for _, name := range viewNames {
-		if !strings.Contains(m.helpView(), name) {
-			t.Errorf("help line is missing %q: %q", name, m.helpView())
-		}
 	}
 }
 

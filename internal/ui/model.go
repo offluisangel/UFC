@@ -2,11 +2,14 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/offluisangel/UFC/internal/dataset"
+	"github.com/offluisangel/UFC/internal/export"
 	"github.com/offluisangel/UFC/internal/model"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -35,6 +38,10 @@ type Model struct {
 	height  int
 	ready   bool
 	err     error
+
+	exportDir string
+	notice    string
+	noticeOK  bool
 }
 
 func New(ds model.Dataset, err error) Model {
@@ -43,6 +50,14 @@ func New(ds model.Dataset, err error) Model {
 
 func (m Model) Init() tea.Cmd {
 	return nil
+}
+
+func (m Model) goTo(v view) Model {
+	if v != m.current {
+		m.current = v
+		m.cursor = 0
+	}
+	return m
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -54,47 +69,62 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		m.notice = ""
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
 		case "1":
-			m.current = viewNext
+			m = m.goTo(viewNext)
 		case "2":
-			m.current = viewTonight
+			m = m.goTo(viewTonight)
 		case "3":
-			m.current = viewCalendar
+			m = m.goTo(viewCalendar)
 		case "4":
-			m.current = viewCard
+			m = m.goTo(viewCard)
 		case "5":
-			m.current = viewResults
+			m = m.goTo(viewResults)
 		case "right", "l", "tab":
-			m.current = (m.current + 1) % numViews
+			m = m.goTo((m.current + 1) % numViews)
 		case "left", "h", "shift+tab":
-			m.current = (m.current + numViews - 1) % numViews
+			m = m.goTo((m.current + numViews - 1) % numViews)
 		case "up", "k":
 			m.cursor--
 		case "down", "j":
 			m.cursor++
+		case "e":
+			m.notice, m.noticeOK = m.exportNext()
+		case "home", "g":
+			m.cursor = 0
+		case "end", "G":
+			m.cursor = m.listLen() - 1
 		}
 		m.cursor = clampCursor(m.cursor, m.listLen())
 	}
 	return m, nil
 }
 
+func (m Model) exportNext() (msg string, ok bool) {
+	e, has := dataset.Next(m.dataset)
+	if !has {
+		return "no hay evento próximo para exportar", false
+	}
+	path := filepath.Join(m.exportDir, export.Filename(e))
+	if err := os.WriteFile(path, export.ICS(e, time.Now()), 0o644); err != nil {
+		return "no se pudo guardar el .ics: " + err.Error(), false
+	}
+	return "guardado " + path, true
+}
+
 func (m Model) listLen() int {
 	switch m.current {
-	case viewNext:
+	case viewNext, viewCard:
 		e, ok := dataset.Next(m.dataset)
 		if !ok {
 			return 0
 		}
 		return len(e.Card)
-	case viewCard:
-		e, ok := dataset.Next(m.dataset)
-		if !ok {
-			return 0
-		}
-		return len(e.Card)
+	case viewCalendar:
+		return len(dataset.Upcoming(m.dataset))
 	case viewResults:
 		return len(dataset.RecentResults(m.dataset, resultsLimit))
 	default:
@@ -129,14 +159,8 @@ func (m Model) View() string {
 	}
 
 	header := m.headerView(width)
-	headerHeight := lipgloss.Height(header)
 	help := m.helpView()
-	helpHeight := lipgloss.Height(help)
-
-	bodyHeight := m.height - headerHeight - helpHeight - 2
-	if bodyHeight < 1 {
-		bodyHeight = 1
-	}
+	bodyHeight := m.bodyHeight(width)
 
 	var body string
 	switch m.current {
@@ -171,6 +195,14 @@ func (m Model) View() string {
 	)
 }
 
+func (m Model) bodyHeight(width int) int {
+	h := m.height - lipgloss.Height(m.headerView(width)) - lipgloss.Height(m.helpView()) - 2
+	if h < 1 {
+		return 1
+	}
+	return h
+}
+
 func clampLines(s string, maxLines int) string {
 	if maxLines <= 0 {
 		return ""
@@ -182,47 +214,45 @@ func clampLines(s string, maxLines int) string {
 	return strings.Join(lines[:maxLines], "\n")
 }
 
-func (m Model) headerView(width int) string {
-	title := styleAccent.Render("UFC") + " " + styleTitle.Render("fight nights")
-	count := styleMuted.Render(fmt.Sprintf("[ %d eventos ]", len(dataset.Upcoming(m.dataset))))
-	rightW := max(0, width-lipgloss.Width(title))
-	var rightStr string
-	if rightW >= lipgloss.Width(count) {
-		rightStr = lipgloss.NewStyle().Width(rightW).Align(lipgloss.Right).Render(count)
-	}
-	titleRow := lipgloss.NewStyle().MaxWidth(width).Render(
-		lipgloss.JoinHorizontal(lipgloss.Top, title, rightStr),
-	)
-
-	tabs := make([]string, 0, numViews)
-	for i, n := range viewNames {
-		if view(i) == m.current {
-			tabs = append(tabs, styleTabActive.Render(n))
-		} else {
-			tabs = append(tabs, styleTabIdle.Render(n))
+func (m Model) tabsRow(width int) string {
+	build := func(compact bool) string {
+		tabs := make([]string, 0, numViews)
+		for i, n := range viewNames {
+			num := strconv.Itoa(i + 1)
+			switch {
+			case view(i) == m.current:
+				tabs = append(tabs, styleTabActive.Render(" "+num+" "+n+" "))
+			case compact:
+				tabs = append(tabs, " "+styleTabNum.Render(num)+" ")
+			default:
+				tabs = append(tabs, " "+styleTabNum.Render(num)+" "+styleTabIdle.Render(n)+" ")
+			}
 		}
+		return strings.Join(tabs, "")
 	}
-	tabsRow := lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
-	var tabBar string
-	if width > lipgloss.Width(tabsRow) {
-		remainingWidth := width - lipgloss.Width(tabsRow)
-		fillRule := lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder(), false, false, true, false).
-			BorderForeground(colorLine).
-			Render(repeat(" ", remainingWidth))
-		tabBar = lipgloss.JoinHorizontal(lipgloss.Top, tabsRow, fillRule)
-	} else {
-		tabBar = tabsRow
-	}
-	tabBar = lipgloss.NewStyle().MaxWidth(width).Render(tabBar)
 
-	return lipgloss.NewStyle().MaxWidth(width).Render(
-		lipgloss.JoinVertical(
-			lipgloss.Left,
-			titleRow,
-			"",
-			tabBar,
-		),
+	row := build(false)
+	if lipgloss.Width(row) > width {
+		row = build(true)
+	}
+	return lipgloss.NewStyle().MaxWidth(width).Render(row)
+}
+
+func (m Model) headerView(width int) string {
+	brand := styleBadge.Render("UFC") + " " + styleTitle.Render("fight nights")
+	count := styleMuted.Render(fmt.Sprintf("%d eventos próximos", len(dataset.Upcoming(m.dataset))))
+
+	titleRow := brand
+	if gap := width - lipgloss.Width(brand) - lipgloss.Width(count); gap >= 2 {
+		titleRow = brand + strings.Repeat(" ", gap) + count
+	}
+	titleRow = lipgloss.NewStyle().MaxWidth(width).Render(titleRow)
+
+	return lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleRow,
+		m.tabsRow(width),
+		rule(width),
 	)
 }
 
@@ -234,70 +264,56 @@ func max(a, b int) int {
 }
 
 func (m Model) helpView() string {
-	pipeSepWide := lipgloss.NewStyle().Foreground(colorLine).Render("  |  ")
-	pipeSepTight := lipgloss.NewStyle().Foreground(colorLine).Render(" | ")
-
-	items := make([]string, 0, numViews)
-	for i, n := range viewNames {
-		items = append(items, styleHelpKey.Render(strconv.Itoa(i+1))+styleHelpTxt.Render(" "+n))
+	sep := styleDim.Render("  |  ")
+	hint := func(key, txt string) string {
+		return styleHelpKey.Render(key) + styleHelpTxt.Render(" "+txt)
 	}
 
-	navKey := "←/→"
-	navTxt := "cambiar"
-	if m.current == viewCard {
-		navKey = "↑/↓"
-		navTxt = "peleas"
-	} else if m.current == viewResults {
-		navKey = "↑/↓"
-		navTxt = "eventos"
+	if m.notice != "" {
+		mark := styleAccent.Render("! ")
+		if m.noticeOK {
+			mark = styleAccent.Render("✓ ")
+		}
+		return lipgloss.NewStyle().MaxWidth(m.helpWidth()).Render(mark + styleValue.Render(m.notice))
 	}
 
-	nav := styleHelpKey.Render(navKey) + styleHelpTxt.Render(" "+navTxt)
-	quit := styleHelpKey.Render("q") + styleHelpTxt.Render(" salir")
+	jump := hint("1-5", "ir")
+	switchTab := hint("←/→", "cambiar")
+	quit := hint("q", "salir")
 
-	allParts := append(append([]string{}, items...), nav, quit)
-	fullWithPipes := strings.Join(allParts, pipeSepWide)
-	if lipgloss.Width(fullWithPipes) <= m.helpWidth() {
-		return fullWithPipes
+	var move string
+	switch m.current {
+	case viewCard, viewNext:
+		move = hint("↑/↓", "peleas")
+	case viewCalendar, viewResults:
+		move = hint("↑/↓", "eventos")
 	}
 
-	fullWithPipesTight := strings.Join(allParts, pipeSepTight)
-	if lipgloss.Width(fullWithPipesTight) <= m.helpWidth() {
-		return fullWithPipesTight
+	var exportKey string
+	switch m.current {
+	case viewNext, viewTonight, viewCard:
+		exportKey = hint("e", "exportar .ics")
 	}
 
-	tabList2 := strings.Join(items, "  ")
-	fullGrouped := tabList2 + pipeSepTight + nav + pipeSepTight + quit
-	if lipgloss.Width(fullGrouped) <= m.helpWidth() {
-		return fullGrouped
+	candidates := [][]string{
+		{jump, switchTab, move, exportKey, quit},
+		{switchTab, move, exportKey, quit},
+		{switchTab, move, quit},
+		{switchTab, quit},
+		{quit},
 	}
-
-	tabList1 := strings.Join(items, " ")
-	fullCompact := tabList1 + pipeSepTight + nav + pipeSepTight + quit
-	if lipgloss.Width(fullCompact) <= m.helpWidth() {
-		return fullCompact
+	for _, c := range candidates {
+		parts := make([]string, 0, len(c))
+		for _, p := range c {
+			if p != "" {
+				parts = append(parts, p)
+			}
+		}
+		line := strings.Join(parts, sep)
+		if lipgloss.Width(line) <= m.helpWidth() {
+			return line
+		}
 	}
-
-	tabListQuit := tabList2 + "  " + quit
-	if lipgloss.Width(tabListQuit) <= m.helpWidth() {
-		return tabListQuit
-	}
-	tabListQuitCompact := tabList1 + "  " + quit
-	if lipgloss.Width(tabListQuitCompact) <= m.helpWidth() {
-		return tabListQuitCompact
-	}
-
-	currTab := styleHelpKey.Render(strconv.Itoa(int(m.current)+1)) + styleHelpTxt.Render(" "+viewNames[m.current])
-	currLine := currTab + pipeSepTight + nav + pipeSepTight + quit
-	if lipgloss.Width(currLine) <= m.helpWidth() {
-		return currLine
-	}
-
-	currLine2 := currTab + "  " + quit
-	if lipgloss.Width(currLine2) <= m.helpWidth() {
-		return currLine2
-	}
-
 	return quit
 }
 
@@ -312,11 +328,7 @@ func repeat(s string, n int) string {
 	if n <= 0 {
 		return ""
 	}
-	out := make([]byte, 0, n*len(s))
-	for i := 0; i < n; i++ {
-		out = append(out, s...)
-	}
-	return string(out)
+	return strings.Repeat(s, n)
 }
 
 func field(label, value string) string {
@@ -338,11 +350,22 @@ func daysUntil(target time.Time) int {
 	return int(t.Sub(dataset.Today()).Hours() / 24)
 }
 
-func announce(n int) string {
+func pluralDays(n int) string {
 	if n == 1 {
-		return "1 pelea"
+		return "1 día"
 	}
-	return fmt.Sprintf("%d peleas", n)
+	return fmt.Sprintf("%d días", n)
+}
+
+func countdown(days int) string {
+	switch {
+	case days <= 0:
+		return "HOY"
+	case days == 1:
+		return "MAÑANA"
+	default:
+		return fmt.Sprintf("EN %d DÍAS", days)
+	}
 }
 
 func announceLine(n int) string {

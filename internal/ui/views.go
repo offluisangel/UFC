@@ -53,6 +53,14 @@ var (
 	}
 )
 
+const (
+	cardFooter      = 2
+	minCardHeight   = 15
+	wideLayout      = 96
+	resultsLimit    = 20
+	tonightFootnote = "fechas según tu hora local"
+)
+
 func dateLong(t time.Time) string {
 	return fmt.Sprintf("%s, %d %s %d", weekdayShort[t.Weekday()], t.Day(), monthShort[t.Month()], t.Year())
 }
@@ -69,209 +77,12 @@ func dayShort(t time.Time) string {
 	return fmt.Sprintf("%02d %s", t.Day(), weekdayShort[t.Weekday()])
 }
 
-func (m Model) nextView(width int) string {
-	e, ok := dataset.Next(m.dataset)
-	if !ok {
-		return emptyState("no hay eventos próximos", "corre: go run ./cmd/ufc-sync")
+func (m Model) listRows(width, headerLines int) int {
+	rows := m.bodyHeight(width) - headerLines - cardFooter
+	if rows < 1 {
+		return 1
 	}
-
-	if width < 96 {
-		return nextStackedView(e, width, m.cursor)
-	}
-
-	leftWidth := (width - 3) * 50 / 100
-	rightWidth := width - leftWidth - 3
-
-	chrome := lipgloss.Height(m.headerView(width)) + lipgloss.Height(m.helpView()) + 2
-	panelHeight := m.height - chrome
-	if panelHeight < 16 {
-		panelHeight = 16
-	}
-
-	left := upcomingPanel(e, leftWidth, panelHeight)
-	right := fightCardPanel(e, rightWidth, panelHeight, m.cursor)
-
-	return lipgloss.JoinHorizontal(lipgloss.Top, left, "   ", right)
-}
-
-func nextStackedView(e model.Event, width, cursor int) string {
-	lines := []string{upcomingPanel(e, width, 0), ""}
-	lines = append(lines, fightCardPanel(e, width, 0, cursor))
-	return lipgloss.JoinVertical(lipgloss.Left, lines...)
-}
-
-func upcomingPanel(e model.Event, width, height int) string {
-	innerWidth := max(1, width-6)
-	heading := panelHeading("PRÓXIMO EVENTO", "")
-	eventName := styleTitle.Render(truncate(e.Name, innerWidth))
-
-	dateCol := lipgloss.JoinVertical(
-		lipgloss.Left,
-		styleSection.Render("FECHA"),
-		styleValue.Render(dateLong(e.Date)),
-	)
-	locCol := lipgloss.JoinVertical(
-		lipgloss.Left,
-		styleSection.Render("LUGAR"),
-		styleValue.Render(truncate(e.Location, max(10, innerWidth-20))),
-	)
-	metaRow := lipgloss.JoinHorizontal(lipgloss.Top, dateCol, "      ", locCol)
-
-	content := []string{
-		heading,
-		"",
-		eventName,
-		"",
-		metaRow,
-	}
-
-	if main, ok := dataset.MainEvent(e); ok {
-		content = append(content, "", mainEventBox(main.Fighters, main.WeightClass))
-	}
-	content = append(content, "", styleMuted.Render(announceLine(len(e.Card))))
-
-	return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
-}
-
-func fightCardPanel(e model.Event, width, height, cursor int) string {
-	innerWidth := max(1, width-6)
-	heading := panelHeading("CARTELERA", fmt.Sprintf("(%d peleas)", len(e.Card)))
-	if len(e.Card) == 0 {
-		content := []string{heading, "", styleMuted.Render("cartelera no anunciada")}
-		return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
-	}
-
-	content := []string{heading, ""}
-
-	totalFights := len(e.Card)
-	start := 0
-	end := totalFights
-
-	if height > 4 {
-		contentH := height - 4
-		slots := contentH - 2 // -2 para heading y línea en blanco
-		if slots > 0 && totalFights > slots {
-			visibleSlots := slots - 1
-			if visibleSlots < 1 {
-				visibleSlots = 1
-			}
-			start, end = window(totalFights, visibleSlots, cursor)
-		}
-	}
-
-	weightW := 0
-	for _, f := range e.Card {
-		if w := lipgloss.Width(f.WeightClass); w > weightW {
-			weightW = w
-		}
-	}
-	if weightW > 18 {
-		weightW = 18
-	}
-
-	fixed := 8 // num + espacios + vs
-	availName := innerWidth - fixed - weightW
-	nameW := availName / 2
-	if nameW < 10 {
-		nameW = 10
-	}
-
-	for i := start; i < end; i++ {
-		fight := e.Card[i]
-		var left, right string
-		if len(fight.Fighters) > 0 {
-			left = fight.Fighters[0]
-		}
-		if len(fight.Fighters) > 1 {
-			right = fight.Fighters[1]
-		}
-
-		num := styleMuted.Render(fmt.Sprintf("%2d  ", i+1))
-		names := styleValue.Render(truncate(left, nameW)) + "  " +
-			styleMainEventVS.Render("vs") + "  " +
-			styleValue.Render(truncate(right, nameW))
-
-		row := num + names
-		if fight.WeightClass != "" && innerWidth > 42 {
-			remaining := max(1, innerWidth-lipgloss.Width(row)-lipgloss.Width(fight.WeightClass))
-			row += strings.Repeat(" ", remaining) + styleMuted.Render(truncate(fight.WeightClass, weightW))
-		}
-		content = append(content, row)
-	}
-
-	if end-start < totalFights {
-		info := fmt.Sprintf("mostrando %d-%d de %d  (↑/↓ desplazarse)", start+1, end, totalFights)
-		content = append(content, "", styleMuted.Render(info))
-	}
-
-	return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
-}
-
-const tonightFootnote = "fechas según tu hora local"
-
-func (m Model) tonightView(width int) string {
-	lines := []string{
-		panelHeading("HOY", "HORA LOCAL"),
-		styleMuted.Render(repeat("─", max(1, width-6))),
-		"",
-	}
-
-	if e, ok := dataset.Tonight(m.dataset); ok {
-		lines = append(lines,
-			styleAccent.Render("sí")+styleValue.Render("  "+e.Name),
-			"",
-			field("lugar", e.Location),
-		)
-		if main, has := dataset.MainEvent(e); has {
-			lines = append(lines, "", mainEventBox(main.Fighters, main.WeightClass))
-		}
-	} else {
-		lines = append(lines, styleMuted.Render("no")+styleValue.Render("  no hay pelea hoy"), "")
-		if next, has := dataset.Next(m.dataset); has {
-			d := daysUntil(next.Date)
-			lines = append(lines,
-				field("próximo", next.Name),
-				field("cuándo", fmt.Sprintf("%s  (en %s)", dateShort(next.Date), pluralDays(d))),
-			)
-		}
-	}
-
-	lines = append(lines, "", styleMuted.Render(tonightFootnote))
-
-	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
-}
-
-func (m Model) calendarView(width int) string {
-	up := dataset.Upcoming(m.dataset)
-	if len(up) == 0 {
-		return emptyState("no hay eventos próximos", "corre: go run ./cmd/ufc-sync")
-	}
-
-	lines := []string{
-		panelHeading("CALENDARIO", "PRÓXIMOS EVENTOS"),
-		styleMuted.Render(repeat("─", max(1, width-6))),
-		"",
-	}
-	var lastMonth string
-
-	for _, e := range up {
-		month := monthYear(e.Date)
-		if month != lastMonth {
-			if lastMonth != "" {
-				lines = append(lines, "")
-			}
-			lines = append(lines, styleAccent.Render(strings.ToUpper(month)))
-			lastMonth = month
-		}
-
-		line := styleLabel.Render(dayShort(e.Date)) + "  " + styleValue.Render(e.Name)
-		if n := len(e.Card); n > 0 {
-			line += "  " + styleMuted.Render(fmt.Sprintf("(%d peleas)", n))
-		}
-		lines = append(lines, lipgloss.NewStyle().MaxWidth(width).Render(line))
-	}
-
-	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+	return rows
 }
 
 func emptyState(title, hint string) string {
@@ -283,28 +94,229 @@ func emptyState(title, hint string) string {
 	)
 }
 
-func pluralDays(n int) string {
+// ---------------------------------------------------------------- próximo
+
+func (m Model) nextView(width int) string {
+	e, ok := dataset.Next(m.dataset)
+	if !ok {
+		return emptyState("no hay eventos próximos", "corre: go run ./cmd/ufc-sync")
+	}
+	cursor := clampCursor(m.cursor, len(e.Card))
+
+	if width < wideLayout {
+		up := upcomingPanel(e, width, 0, true)
+		fightsH := 0
+		if m.height >= minCardHeight {
+			fightsH = max(8, m.bodyHeight(width)-lipgloss.Height(up)-1)
+		}
+		return lipgloss.JoinVertical(lipgloss.Left, up, "", fightCardPanel(e, width, fightsH, cursor))
+	}
+
+	const gap = 2
+	leftW := (width - gap) / 2
+	rightW := width - leftW - gap
+	panelH := max(16, m.bodyHeight(width))
+
+	return lipgloss.JoinHorizontal(
+		lipgloss.Top,
+		upcomingPanel(e, leftW, panelH, false),
+		strings.Repeat(" ", gap),
+		fightCardPanel(e, rightW, panelH, cursor),
+	)
+}
+
+func upcomingPanel(e model.Event, width, height int, compact bool) string {
+	iw := max(1, width-6)
+	days := daysUntil(e.Date)
+
+	var content []string
+	if compact {
+		content = []string{
+			headerLine("PRÓXIMO EVENTO", countdown(days), iw),
+			styleTitle.Render(truncate(e.Name, iw)),
+			styleValue.Render(truncate(dateLong(e.Date), iw)),
+			styleMuted.Render(truncate(e.Location, iw)),
+		}
+	} else {
+		content = []string{
+			headerLine("PRÓXIMO EVENTO", "", iw),
+			"",
+			styleTitle.Render(truncate(e.Name, iw)),
+			styleAccent.Render(countdown(days)),
+			"",
+			field("fecha", truncate(dateLong(e.Date), max(1, iw-12))),
+			field("lugar", truncate(e.Location, max(1, iw-12))),
+		}
+		if main, ok := dataset.MainEvent(e); ok {
+			box := mainEventBox(main.Fighters, main.WeightClass)
+			content = append(content, "", lipgloss.NewStyle().MaxWidth(iw).Render(box))
+		}
+		content = append(content, "", styleMuted.Render(announceLine(len(e.Card))))
+	}
+
+	return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
+}
+
+func fightCardPanel(e model.Event, width, height, cursor int) string {
+	iw := max(1, width-6)
+	heading := headerLine("CARTELERA", fmt.Sprintf("%d peleas", len(e.Card)), iw)
+
+	if len(e.Card) == 0 {
+		content := []string{heading, "", styleMuted.Render("cartelera no anunciada")}
+		return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
+	}
+
+	total := len(e.Card)
+	start, end := 0, total
+	if height > 4 {
+		slots := height - 4 - 2 // heading + blank line
+		if slots > 0 && total > slots {
+			visible := max(1, slots-2) // blank line + scroll hint
+			start, end = window(total, visible, cursor)
+		}
+	}
+
+	nameW, weightW := cardColumns(e, iw)
+	if iw < 64 {
+		weightW = 0
+		nameW = max(6, (iw-14)/2)
+	}
+
+	content := []string{heading, ""}
+	for i := start; i < end; i++ {
+		content = append(content, fightRow(e.Card[i], i, i == cursor, nameW, weightW, iw))
+	}
+	if end-start < total {
+		hint := fmt.Sprintf("mostrando %d-%d de %d", start+1, end, total)
+		content = append(content, "", styleMuted.Render(hint))
+	}
+
+	return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
+}
+
+// -------------------------------------------------------------------- hoy
+
+func (m Model) tonightView(width int) string {
+	lines := []string{
+		sectionHeader("HOY", "HORA LOCAL", width),
+		"",
+	}
+
+	if e, ok := dataset.Tonight(m.dataset); ok {
+		lines = append(lines,
+			styleBadge.Render("HOY HAY PELEA"),
+			"",
+			styleTitle.Render(truncate(e.Name, width)),
+			styleMuted.Render(truncate(e.Location, width)),
+		)
+		if main, has := dataset.MainEvent(e); has {
+			box := mainEventBox(main.Fighters, main.WeightClass)
+			lines = append(lines, "", lipgloss.NewStyle().MaxWidth(width).Render(box))
+		}
+	} else {
+		lines = append(lines, styleTitle.Render("no hay pelea hoy"), "")
+		if next, has := dataset.Next(m.dataset); has {
+			lines = append(lines,
+				styleAccent.Render(countdown(daysUntil(next.Date))),
+				"",
+				field("próximo", truncate(next.Name, max(1, width-12))),
+				field("cuándo", truncate(fmt.Sprintf("%s  (en %s)", dateShort(next.Date), pluralDays(daysUntil(next.Date))), max(1, width-12))),
+			)
+		}
+	}
+
+	lines = append(lines, "", styleDim.Render(tonightFootnote))
+
+	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+}
+
+// ------------------------------------------------------------- calendario
+
+const calendarHeader = 3
+
+func (m Model) calendarView(width int) string {
+	up := dataset.Upcoming(m.dataset)
+	if len(up) == 0 {
+		return emptyState("no hay eventos próximos", "corre: go run ./cmd/ufc-sync")
+	}
+	cursor := clampCursor(m.cursor, len(up))
+
+	var (
+		lines      []string
+		cursorLine int
+		lastMonth  string
+	)
+	for i, e := range up {
+		if month := monthYear(e.Date); month != lastMonth {
+			if lastMonth != "" {
+				lines = append(lines, "")
+			}
+			lines = append(lines, styleAccent.Render(strings.ToUpper(month)))
+			lastMonth = month
+		}
+		if i == cursor {
+			cursorLine = len(lines)
+		}
+		lines = append(lines, calendarRow(e, i == cursor, width))
+	}
+
+	start, end := 0, len(lines)
+	if m.height >= minCardHeight {
+		start, end = window(len(lines), m.listRows(width, calendarHeader), cursorLine)
+	}
+
+	out := []string{sectionHeader("CALENDARIO", "PRÓXIMOS EVENTOS", width), ""}
+	out = append(out, lines[start:end]...)
+	out = append(out, "", positionLine("evento", cursor, len(up), 0, len(up), len(up)))
+
+	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, out...))
+}
+
+func calendarRow(e model.Event, selected bool, width int) string {
+	const (
+		prefixW = 2 + 6 + 2
+		countW  = 13
+		locW    = 24
+	)
+
+	count := "sin cartelera"
+	if n := len(e.Card); n > 0 {
+		count = announce(n)
+	}
+
+	showLoc := width >= 84
+	nameW := width - prefixW - countW - 2
+	if showLoc {
+		nameW -= locW + 2
+	}
+	nameW = max(8, nameW)
+
+	nameStyle := styleValue
+	if selected {
+		nameStyle = styleMainEventName
+	}
+
+	line := cursorMarker(selected) +
+		cell(styleLabel, dayShort(e.Date), selected) + spaces(2, selected) +
+		cell(nameStyle, pad(truncate(e.Name, nameW), nameW), selected) + spaces(2, selected)
+	if showLoc {
+		line += cell(styleMuted, pad(truncate(e.Location, locW), locW), selected) + spaces(2, selected)
+	}
+	line += cell(styleDim, repeat(" ", max(0, countW-lipgloss.Width(count)))+count, selected)
+
+	return fillRow(line, width, selected)
+}
+
+func announce(n int) string {
 	if n == 1 {
-		return "1 día"
+		return "1 pelea"
 	}
-	return fmt.Sprintf("%d días", n)
+	return fmt.Sprintf("%d peleas", n)
 }
 
-const (
-	cardHeader = 3
-	cardFooter = 2
-)
+// -------------------------------------------------------------- cartelera
 
-const minCardHeight = 15
-
-func (m Model) cardRows(width int) int {
-	chrome := lipgloss.Height(m.headerView(width)) + lipgloss.Height(m.helpView()) + 2
-	rows := m.height - chrome - cardHeader - cardFooter
-	if rows < 1 {
-		return 1
-	}
-	return rows
-}
+const cardHeader = 4
 
 func window(total, slots, cursor int) (int, int) {
 	if total <= 0 || slots <= 0 {
@@ -335,13 +347,12 @@ func cardColumns(e model.Event, width int) (nameW, weightW int) {
 		weightW = 20
 	}
 
-	const fixed = 17
+	const fixed = 14 // marker + star + number + gaps + " vs "
 	avail := width - fixed - weightW
 	if avail < 16 {
 		return 8, weightW
 	}
 
-	// El nombre más largo entre los peleadores para evitar espacios vacíos
 	maxName := 0
 	for _, f := range e.Card {
 		for _, name := range f.Fighters {
@@ -351,57 +362,44 @@ func cardColumns(e model.Event, width int) (nameW, weightW int) {
 		}
 	}
 
-	desired := maxName
-	if desired < 12 {
-		desired = 12
-	}
-	if desired > 22 {
-		desired = 22
-	}
-
+	desired := min(max(maxName, 12), 22)
+	nameW = desired
 	if avail/2 < desired {
 		nameW = avail / 2
-	} else {
-		nameW = desired
 	}
-
-	if nameW < 8 {
-		nameW = 8
-	}
-	return nameW, weightW
+	return max(nameW, 8), weightW
 }
 
 func cursorMarker(selected bool) string {
 	if selected {
-		return styleCursor.Render("▸ ")
+		return cell(styleCursor, "▸ ", true)
 	}
 	return "  "
 }
 
 func fightRow(f model.Fight, idx int, selected bool, nameW, weightW, width int) string {
-	marker := cursorMarker(selected)
-	star := "   "
+	left, right := fighterNames(f.Fighters)
+
+	nameStyle := styleValue
+	if selected {
+		nameStyle = styleMainEventName
+	}
+
+	star := spaces(2, selected)
 	if f.IsMainEvent {
-		star = styleMainEventLabel.Render("☆  ")
+		star = cell(styleStar, "☆ ", selected)
 	}
 
-	var left, right string
-	if len(f.Fighters) > 0 {
-		left = f.Fighters[0]
-	}
-	if len(f.Fighters) > 1 {
-		right = f.Fighters[1]
+	line := cursorMarker(selected) + star +
+		cell(styleDim, fmt.Sprintf("%2d", idx+1), selected) + spaces(2, selected) +
+		cell(nameStyle, pad(truncate(left, nameW), nameW), selected) +
+		cell(styleMainEventVS, " vs ", selected) +
+		cell(nameStyle, pad(truncate(right, nameW), nameW), selected)
+	if weightW > 0 {
+		line += spaces(2, selected) + cell(styleLabel, pad(truncate(f.WeightClass, weightW), weightW), selected)
 	}
 
-	line := marker +
-		" " + styleMuted.Render(fmt.Sprintf("%2d", idx+1)) +
-		"  " + styleValue.Render(pad(truncate(left, nameW), nameW)) +
-		"  " + styleMainEventVS.Render("vs") +
-		"  " + styleValue.Render(pad(truncate(right, nameW), nameW)) +
-		"  " + star +
-		styleLabel.Render(pad(truncate(f.WeightClass, weightW), weightW))
-
-	return lipgloss.NewStyle().MaxWidth(width).Render(line)
+	return fillRow(line, width, selected)
 }
 
 func truncate(s string, n int) string {
@@ -449,12 +447,12 @@ func (m Model) cardView(width int) string {
 	nameW, weightW := cardColumns(e, width)
 
 	lines := []string{
-		panelHeading("CARTELERA", fmt.Sprintf("%d PELEAS - %s", len(e.Card), e.Name)),
-		styleMuted.Render(eventMeta(e)),
+		sectionHeader("CARTELERA", fmt.Sprintf("%d peleas - %s", len(e.Card), e.Name), width),
+		styleMuted.Render(truncate(eventMeta(e), width)),
 		"",
 	}
 
-	start, end := window(len(e.Card), m.cardRows(width), cursor)
+	start, end := window(len(e.Card), m.listRows(width, cardHeader), cursor)
 	for i := start; i < end; i++ {
 		lines = append(lines, fightRow(e.Card[i], i, i == cursor, nameW, weightW, width))
 	}
@@ -464,7 +462,12 @@ func (m Model) cardView(width int) string {
 	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
 }
 
-const resultsLimit = 20
+// ------------------------------------------------------------- resultados
+
+const (
+	resultsHeader = 3
+	resultDateW   = 11
+)
 
 func (m Model) resultsView(width int) string {
 	events := dataset.RecentResults(m.dataset, resultsLimit)
@@ -474,50 +477,136 @@ func (m Model) resultsView(width int) string {
 
 	cursor := clampCursor(m.cursor, len(events))
 
+	const gap = 3
+	wide := width >= 120
+	listW := width
+	if wide {
+		listW = (width - gap) * 58 / 100
+	}
+
 	lines := []string{
-		panelHeading("RESULTADOS", "ÚLTIMOS PRIMERO"),
-		styleMuted.Render(repeat("─", max(1, width-6))),
+		sectionHeader("RESULTADOS", "ÚLTIMOS PRIMERO", listW),
 		"",
 	}
 
-	start, end := window(len(events), m.resultRows(width), cursor)
+	start, end := window(len(events), m.listRows(width, resultsHeader), cursor)
 	for i := start; i < end; i++ {
-		lines = append(lines, resultRow(events[i], i == cursor, width))
+		lines = append(lines, resultRow(events[i], i == cursor, listW))
 	}
-
 	lines = append(lines, "", resultCursorLine(cursor, len(events), start, end))
 
-	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
-}
-
-func (m Model) resultRows(width int) int {
-	chrome := lipgloss.Height(m.headerView(width)) + lipgloss.Height(m.helpView()) + 2
-	rows := m.height - chrome - cardHeader - cardFooter
-	if rows < 1 {
-		return 1
+	list := lipgloss.NewStyle().Width(listW).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
+	if !wide {
+		return list
 	}
-	return rows
+
+	detail := resultDetailPanel(events[cursor], width-listW-gap, max(12, m.bodyHeight(width)))
+	return lipgloss.JoinHorizontal(lipgloss.Top, list, strings.Repeat(" ", gap), detail)
 }
 
 func resultRow(e model.Event, selected bool, width int) string {
-	marker := cursorMarker(selected)
-
-	fixed := lipgloss.Width("  ") + 1 + lipgloss.Width(dateShort(time.Time{})) + 2
+	prefixW := 2 + resultDateW + 2
 	detail := headlineResult(e)
-	nameW := width - fixed - lipgloss.Width(detail) - 1
-	if nameW < 12 {
-		nameW = 12
+
+	nameW := width - prefixW
+	if detail != "" {
+		nameW -= lipgloss.Width(detail) + 2
 	}
-	if detail == "" {
-		nameW = width - fixed
+	nameW = max(12, nameW)
+
+	nameStyle := styleValue
+	if selected {
+		nameStyle = styleMainEventName
 	}
 
-	line := marker + " " +
-		styleMuted.Render(dateShort(e.Date)) + "  " +
-		styleValue.Render(truncate(e.Name, nameW)) + "  " +
-		styleAccent.Render(detail)
+	line := cursorMarker(selected) +
+		cell(styleMuted, pad(dateShort(e.Date), resultDateW), selected) + spaces(2, selected) +
+		cell(nameStyle, pad(truncate(e.Name, nameW), nameW), selected)
+	if detail != "" {
+		line += spaces(2, selected) + cell(styleAccent, detail, selected)
+	}
 
+	return fillRow(line, width, selected)
+}
+
+func resultDetailPanel(e model.Event, width, height int) string {
+	iw := max(1, width-6)
+
+	content := []string{
+		headerLine("DETALLE", dateShort(e.Date), iw),
+		"",
+		styleTitle.Render(truncate(e.Name, iw)),
+		styleMuted.Render(truncate(e.Location, iw)),
+		"",
+	}
+
+	room := max(1, height-4-len(content))
+	shown := len(e.Card)
+	if shown > room {
+		shown = max(1, room-1)
+	}
+	for _, f := range e.Card[:shown] {
+		content = append(content, fightResultLine(f, iw))
+	}
+	if shown < len(e.Card) {
+		content = append(content, styleDim.Render(fmt.Sprintf("+ %d peleas más", len(e.Card)-shown)))
+	}
+	if len(e.Card) == 0 {
+		content = append(content, styleMuted.Render("sin cartelera registrada"))
+	}
+
+	return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
+}
+
+func fightResultLine(f model.Fight, width int) string {
+	left, right := fighterNames(f.Fighters)
+	outcome := fightOutcome(f)
+
+	star := "  "
+	if f.IsMainEvent {
+		star = styleStar.Render("☆ ")
+	}
+
+	leftSt, rightSt := styleValue, styleValue
+	sep := " vs "
+	switch {
+	case f.Winner != "" && f.Winner == left:
+		leftSt, rightSt, sep = styleMainEventName, styleMuted, " def. "
+	case f.Winner != "" && f.Winner == right:
+		left, right = right, left
+		leftSt, rightSt, sep = styleMainEventName, styleMuted, " def. "
+	}
+
+	budget := width - 2 - lipgloss.Width(sep)
+	if outcome != "" {
+		budget -= lipgloss.Width(outcome) + 2
+	}
+	left, right = fitPair(left, right, budget)
+
+	names := leftSt.Render(left) + styleDim.Render(sep) + rightSt.Render(right)
+	line := star + names
+	if outcome != "" {
+		gap := max(2, width-lipgloss.Width(line)-lipgloss.Width(outcome))
+		line += strings.Repeat(" ", gap) + styleAccent.Render(outcome)
+	}
 	return lipgloss.NewStyle().MaxWidth(width).Render(line)
+}
+
+func fitPair(a, b string, budget int) (string, string) {
+	budget = max(2, budget)
+	wa, wb := lipgloss.Width(a), lipgloss.Width(b)
+	if wa+wb <= budget {
+		return a, b
+	}
+	half := budget / 2
+	switch {
+	case wa <= half:
+		return a, truncate(b, budget-wa)
+	case wb <= budget-half:
+		return truncate(a, budget-wb), b
+	default:
+		return truncate(a, half), truncate(b, budget-half)
+	}
 }
 
 func headlineResult(e model.Event) string {
@@ -525,37 +614,24 @@ func headlineResult(e model.Event) string {
 	if !ok {
 		return ""
 	}
-	if f.Method == "" {
-		return ""
+	return fightOutcome(f)
+}
+
+func positionLine(noun string, cursor, total, start, end, shown int) string {
+	pos := fmt.Sprintf("%s %d de %d", noun, cursor+1, total)
+	if start > 0 || end < shown {
+		pos += fmt.Sprintf("   mostrando %d-%d", start+1, end)
 	}
-	out := f.Method
-	if f.Round != "" {
-		out += " R" + f.Round
+	if total > 1 {
+		pos += "   ↑/↓ moverse"
 	}
-	if f.Time != "" {
-		out += " " + f.Time
-	}
-	return out
+	return styleMuted.Render(pos)
 }
 
 func resultCursorLine(cursor, total, start, end int) string {
-	pos := fmt.Sprintf("evento %d de %d", cursor+1, total)
-	if start > 0 || end < total {
-		pos += fmt.Sprintf("   mostrando %d-%d", start+1, end)
-	}
-	if total > 1 {
-		pos += "   ↑/↓ moverse"
-	}
-	return styleMuted.Render(pos)
+	return positionLine("evento", cursor, total, start, end, total)
 }
 
 func cursorLine(cursor, total, start, end int) string {
-	pos := fmt.Sprintf("pelea %d de %d", cursor+1, total)
-	if start > 0 || end < total {
-		pos += fmt.Sprintf("   mostrando %d-%d", start+1, end)
-	}
-	if total > 1 {
-		pos += "   ↑/↓ moverse"
-	}
-	return styleMuted.Render(pos)
+	return positionLine("pelea", cursor, total, start, end, total)
 }
