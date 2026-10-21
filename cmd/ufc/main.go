@@ -16,7 +16,14 @@ import (
 
 const staleAfter = 12 * time.Hour
 
+// version is set at build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--version" || os.Args[1] == "version") {
+		fmt.Println("ufc", version)
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "export" {
 		os.Exit(runExport(os.Args[2:], os.Stdout, os.Stderr))
 	}
