@@ -3,6 +3,8 @@
 TUI en Go para consultar la cartelera de UFC. Sin cuenta, sin base de datos, sin clave
 de API: el scraper escribe un JSON y la app solo lo lee.
 
+![ss](assets/ss.png)
+
 ## Teclas
 
 | Tecla | Acción |
