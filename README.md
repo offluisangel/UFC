@@ -1,7 +1,6 @@
 # UFC TUI
 
-TUI en Go para consultar la cartelera de UFC desde
-[ufcstats.com](http://ufcstats.com). Sin cuenta, sin base de datos, sin clave
+TUI en Go para consultar la cartelera de UFC. Sin cuenta, sin base de datos, sin clave
 de API: el scraper escribe un JSON y la app solo lo lee.
 
 ## Teclas
@@ -11,6 +10,8 @@ de API: el scraper escribe un JSON y la app solo lo lee.
 | `1` … `5` | Ir a la vista. |
 | `←` `→` | Cambiar de vista. También `h` / `l` y `tab` / `shift+tab`. |
 | `↑` `↓` | Mover el cursor en cartelera y resultados. También `k` / `j`. |
+| `e` | Exportar el próximo evento a un `.ics` (en `próximo`, `hoy` y `cartelera`). |
+| `g` `G` | Ir al principio o al final de la lista. También `home` / `end`. |
 | `q` | Salir. También `ctrl+c` y `esc`. |
 
 ### Las cinco vistas
@@ -23,6 +24,16 @@ de API: el scraper escribe un JSON y la app solo lo lee.
   marcada. Scrollea con `↑`/`↓`.
 - **resultados** — hasta 20 eventos ya peleados, del más nuevo al más viejo,
   con un resumen de su estelar (método, ronda, tiempo).
+
+## Exportar al calendario
+
+```sh
+ufc export            # guarda ufc-333-volkanovski-vs-evloev.ics
+ufc export -o -       # imprime el .ics por stdout
+ufc export -o mi.ics  # nombre propio
+```
+
+Exporta solo el próximo evento, como entrada de **día completo**.
 
 ## Tests
 

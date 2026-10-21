@@ -17,10 +17,14 @@ import (
 const staleAfter = 12 * time.Hour
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "export" {
+		os.Exit(runExport(os.Args[2:], os.Stdout, os.Stderr))
+	}
+
 	args, err := tuiArgs(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		fmt.Fprintln(os.Stderr, "uso: ufc [tui] [opciones]")
+		fmt.Fprintln(os.Stderr, "uso: ufc [tui] [opciones] | ufc export [opciones]")
 		os.Exit(2)
 	}
 	var (
