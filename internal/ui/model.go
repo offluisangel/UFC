@@ -28,7 +28,7 @@ const (
 
 const numViews = 5
 
-var viewNames = []string{"próximo", "hoy", "calendario", "cartelera", "resultados"}
+var viewNames = []string{"next", "tonight", "calendar", "card", "results"}
 
 type Model struct {
 	dataset model.Dataset
@@ -106,13 +106,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) exportNext() (msg string, ok bool) {
 	e, has := dataset.Next(m.dataset)
 	if !has {
-		return "no hay evento próximo para exportar", false
+		return "No upcoming event to export", false
 	}
 	path := filepath.Join(m.exportDir, export.Filename(e))
 	if err := os.WriteFile(path, export.ICS(e, time.Now()), 0o644); err != nil {
-		return "no se pudo guardar el .ics: " + err.Error(), false
+		return "Failed to save .ics: " + err.Error(), false
 	}
-	return "guardado " + path, true
+	return "Saved " + path, true
 }
 
 func (m Model) listLen() int {
@@ -147,7 +147,7 @@ func clampCursor(cursor, n int) int {
 
 func (m Model) View() string {
 	if !m.ready {
-		return "cargando..."
+		return "Loading..."
 	}
 	if m.err != nil {
 		return errorView(m.err)
@@ -240,7 +240,7 @@ func (m Model) tabsRow(width int) string {
 
 func (m Model) headerView(width int) string {
 	brand := styleBadge.Render("UFC") + " " + styleTitle.Render("fight nights")
-	count := styleMuted.Render(fmt.Sprintf("%d eventos próximos", len(dataset.Upcoming(m.dataset))))
+	count := styleMuted.Render(fmt.Sprintf("%d upcoming events", len(dataset.Upcoming(m.dataset))))
 
 	titleRow := brand
 	if gap := width - lipgloss.Width(brand) - lipgloss.Width(count); gap >= 2 {
@@ -277,22 +277,22 @@ func (m Model) helpView() string {
 		return lipgloss.NewStyle().MaxWidth(m.helpWidth()).Render(mark + styleValue.Render(m.notice))
 	}
 
-	jump := hint("1-5", "ir")
-	switchTab := hint("←/→", "cambiar")
-	quit := hint("q", "salir")
+	jump := hint("1-5", "go to view")
+	switchTab := hint("←/→", "switch views")
+	quit := hint("q", "quit")
 
 	var move string
 	switch m.current {
 	case viewCard, viewNext:
-		move = hint("↑/↓", "peleas")
+		move = hint("↑/↓", "fights")
 	case viewCalendar, viewResults:
-		move = hint("↑/↓", "eventos")
+		move = hint("↑/↓", "events")
 	}
 
 	var exportKey string
 	switch m.current {
 	case viewNext, viewTonight, viewCard:
-		exportKey = hint("e", "exportar .ics")
+		exportKey = hint("e", "export .ics")
 	}
 
 	candidates := [][]string{
@@ -352,27 +352,27 @@ func daysUntil(target time.Time) int {
 
 func pluralDays(n int) string {
 	if n == 1 {
-		return "1 día"
+		return "1 day"
 	}
-	return fmt.Sprintf("%d días", n)
+	return fmt.Sprintf("%d days", n)
 }
 
 func countdown(days int) string {
 	switch {
 	case days <= 0:
-		return "HOY"
+		return "TODAY"
 	case days == 1:
-		return "MAÑANA"
+		return "TOMORROW"
 	default:
-		return fmt.Sprintf("EN %d DÍAS", days)
+		return fmt.Sprintf("IN %d DAYS", days)
 	}
 }
 
 func announceLine(n int) string {
 	if n == 1 {
-		return "1 pelea anunciada"
+		return "1 fight announced"
 	}
-	return fmt.Sprintf("%d peleas anunciadas", n)
+	return fmt.Sprintf("%d fights announced", n)
 }
 
 func errorView(err error) string {
@@ -382,6 +382,6 @@ func errorView(err error) string {
 		"",
 		styleValue.Render(err.Error()),
 		"",
-		styleMuted.Render("q para salir"),
+		styleMuted.Render("q to quit"),
 	)
 }

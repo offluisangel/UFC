@@ -31,7 +31,7 @@ func main() {
 	args, err := tuiArgs(os.Args[1:])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		fmt.Fprintln(os.Stderr, "uso: ufc [tui] [opciones] | ufc export [opciones]")
+		fmt.Fprintln(os.Stderr, "Usage: ufc [tui] [options] | ufc export [options]")
 		os.Exit(2)
 	}
 	var (
@@ -41,7 +41,7 @@ func main() {
 		verbose = flag.Bool("v", false, "verbose sync output")
 	)
 	flag.Usage = func() {
-		fmt.Fprintln(flag.CommandLine.Output(), "uso: ufc [tui] [opciones]")
+		fmt.Fprintln(flag.CommandLine.Output(), "Usage: ufc [tui] [options]")
 		flag.PrintDefaults()
 	}
 	if err := flag.CommandLine.Parse(args); err != nil {
@@ -53,23 +53,23 @@ func main() {
 	if !*noSync {
 		stale := loadErr != nil || time.Since(ds.SyncedAt) > staleAfter
 		if *force || stale {
-			fmt.Println("sincronizando desde ufcstats...")
+			fmt.Println("Syncing with ufcstats...")
 			synced, err := fetch.Sync(fetch.Options{OutPath: *data, Verbose: *verbose})
 			switch {
 			case err != nil && loadErr != nil:
-				fmt.Fprintln(os.Stderr, "falló la sincronización y no hay dataset cacheado:", err)
+				fmt.Fprintln(os.Stderr, "Sync failed and no cached dataset is available:", err)
 				os.Exit(1)
 			case err != nil:
-				fmt.Fprintln(os.Stderr, "falló la sincronización, uso el dataset cacheado:", err)
+				fmt.Fprintln(os.Stderr, "Sync failed; using cached dataset:", err)
 			default:
 				ds, loadErr = synced, nil
-				fmt.Printf("%d eventos sincronizados\n\n", ds.EventCount)
+				fmt.Printf("Synced %d events\n\n", ds.EventCount)
 			}
 		}
 	}
 
 	if _, err := tea.NewProgram(ui.New(ds, loadErr), tea.WithAltScreen()).Run(); err != nil {
-		fmt.Fprintln(os.Stderr, "error de tui:", err)
+		fmt.Fprintln(os.Stderr, "TUI error:", err)
 		os.Exit(1)
 	}
 }
@@ -81,5 +81,5 @@ func tuiArgs(args []string) ([]string, error) {
 	if args[0] == "tui" {
 		return args[1:], nil
 	}
-	return nil, fmt.Errorf("comando desconocido %q", args[0])
+	return nil, fmt.Errorf("unknown command %q", args[0])
 }

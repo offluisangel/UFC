@@ -25,7 +25,7 @@ func ICS(e model.Event, now time.Time) []byte {
 	lines := []string{
 		"BEGIN:VCALENDAR",
 		"VERSION:2.0",
-		"PRODID:-//ufc-tui//fight nights//ES",
+		"PRODID:-//ufc-tui//fight nights//EN",
 		"CALSCALE:GREGORIAN",
 		"METHOD:PUBLISH",
 		"BEGIN:VEVENT",
@@ -67,7 +67,7 @@ func description(e model.Event) string {
 		if !f.IsMainEvent || len(f.Fighters) < 2 {
 			continue
 		}
-		line := "Pelea estelar: " + f.Fighters[0] + " vs " + f.Fighters[1]
+		line := "Main event: " + f.Fighters[0] + " vs " + f.Fighters[1]
 		if f.WeightClass != "" {
 			line += " (" + f.WeightClass + ")"
 		}
@@ -76,13 +76,13 @@ func description(e model.Event) string {
 	}
 	switch n := len(e.Card); n {
 	case 0:
-		parts = append(parts, "Cartelera no anunciada.")
+		parts = append(parts, "Fight card not announced.")
 	case 1:
-		parts = append(parts, "1 pelea anunciada.")
+		parts = append(parts, "1 fight announced.")
 	default:
-		parts = append(parts, fmt.Sprintf("%d peleas anunciadas.", n))
+		parts = append(parts, fmt.Sprintf("%d fights announced.", n))
 	}
-	parts = append(parts, "Horario no incluido.")
+	parts = append(parts, "Event time not included.")
 	return strings.Join(parts, "\n")
 }
 

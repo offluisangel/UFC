@@ -162,7 +162,7 @@ func fighterNames(fighters []string) (string, string) {
 func mainEventBox(fighters []string, weight string) string {
 	left, right := fighterNames(fighters)
 
-	header := styleStar.Render("☆") + " " + styleMainEventLabel.Render("PELEA ESTELAR")
+	header := styleStar.Render("☆") + " " + styleMainEventLabel.Render("MAIN EVENT")
 	names := styleMainEventName.Render(left) + "  " +
 		styleMainEventVS.Render("vs") + "  " +
 		styleMainEventName.Render(right)

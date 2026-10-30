@@ -17,8 +17,8 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	data := fs.String("data", "data/events.json", "dataset JSON path")
 	out := fs.String("o", "", "output file; use - for stdout (default: a name based on the event)")
 	fs.Usage = func() {
-		fmt.Fprintln(stderr, "uso: ufc export [opciones]")
-		fmt.Fprintln(stderr, "exporta el próximo evento como archivo .ics (día completo)")
+		fmt.Fprintln(stderr, "Usage: ufc export [options]")
+		fmt.Fprintln(stderr, "Export the next event as an all-day .ics file")
 		fs.PrintDefaults()
 	}
 	if err := fs.Parse(args); err != nil {
@@ -32,14 +32,14 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 	}
 	e, ok := dataset.Next(ds)
 	if !ok {
-		fmt.Fprintln(stderr, "no hay eventos próximos para exportar")
+		fmt.Fprintln(stderr, "No upcoming events to export")
 		return 1
 	}
 
 	ics := export.ICS(e, time.Now())
 	if *out == "-" {
 		if _, err := stdout.Write(ics); err != nil {
-			fmt.Fprintln(stderr, "no se pudo escribir:", err)
+			fmt.Fprintln(stderr, "Failed to write:", err)
 			return 1
 		}
 		return 0
@@ -50,9 +50,9 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 		path = export.Filename(e)
 	}
 	if err := os.WriteFile(path, ics, 0o644); err != nil {
-		fmt.Fprintln(stderr, "no se pudo guardar el archivo:", err)
+		fmt.Fprintln(stderr, "Failed to save file:", err)
 		return 1
 	}
-	fmt.Fprintf(stdout, "guardado %s (%s)\n", path, e.Name)
+	fmt.Fprintf(stdout, "Saved %s (%s)\n", path, e.Name)
 	return 0
 }

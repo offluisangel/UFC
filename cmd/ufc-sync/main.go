@@ -17,10 +17,10 @@ func main() {
 
 	ds, err := fetch.Sync(fetch.Options{OutPath: *out, Verbose: *verbose})
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "sync failed:", err)
+		fmt.Fprintln(os.Stderr, "Sync failed:", err)
 		os.Exit(1)
 	}
 	if !*verbose {
-		fmt.Printf("synced %d events -> %s\n", ds.EventCount, *out)
+		fmt.Printf("Synced %d events -> %s\n", ds.EventCount, *out)
 	}
 }

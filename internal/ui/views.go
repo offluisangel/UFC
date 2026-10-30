@@ -13,43 +13,43 @@ import (
 
 var (
 	monthShort = map[time.Month]string{
-		time.January:   "ene",
-		time.February:  "feb",
-		time.March:     "mar",
-		time.April:     "abr",
-		time.May:       "may",
-		time.June:      "jun",
-		time.July:      "jul",
-		time.August:    "ago",
-		time.September: "sep",
-		time.October:   "oct",
-		time.November:  "nov",
-		time.December:  "dic",
+		time.January:   "Jan",
+		time.February:  "Feb",
+		time.March:     "Mar",
+		time.April:     "Apr",
+		time.May:       "May",
+		time.June:      "Jun",
+		time.July:      "Jul",
+		time.August:    "Aug",
+		time.September: "Sep",
+		time.October:   "Oct",
+		time.November:  "Nov",
+		time.December:  "Dec",
 	}
 
 	monthLong = map[time.Month]string{
-		time.January:   "enero",
-		time.February:  "febrero",
-		time.March:     "marzo",
-		time.April:     "abril",
-		time.May:       "mayo",
-		time.June:      "junio",
-		time.July:      "julio",
-		time.August:    "agosto",
-		time.September: "septiembre",
-		time.October:   "octubre",
-		time.November:  "noviembre",
-		time.December:  "diciembre",
+		time.January:   "January",
+		time.February:  "February",
+		time.March:     "March",
+		time.April:     "April",
+		time.May:       "May",
+		time.June:      "June",
+		time.July:      "July",
+		time.August:    "August",
+		time.September: "September",
+		time.October:   "October",
+		time.November:  "November",
+		time.December:  "December",
 	}
 
 	weekdayShort = map[time.Weekday]string{
-		time.Sunday:    "dom",
-		time.Monday:    "lun",
-		time.Tuesday:   "mar",
-		time.Wednesday: "mié",
-		time.Thursday:  "jue",
-		time.Friday:    "vie",
-		time.Saturday:  "sáb",
+		time.Sunday:    "Sun",
+		time.Monday:    "Mon",
+		time.Tuesday:   "Tue",
+		time.Wednesday: "Wed",
+		time.Thursday:  "Thu",
+		time.Friday:    "Fri",
+		time.Saturday:  "Sat",
 	}
 )
 
@@ -58,7 +58,7 @@ const (
 	minCardHeight   = 15
 	wideLayout      = 96
 	resultsLimit    = 20
-	tonightFootnote = "fechas según tu hora local"
+	tonightFootnote = "dates shown in your local time"
 )
 
 func dateLong(t time.Time) string {
@@ -94,12 +94,12 @@ func emptyState(title, hint string) string {
 	)
 }
 
-// ---------------------------------------------------------------- próximo
+// ---------------------------------------------------------------- next
 
 func (m Model) nextView(width int) string {
 	e, ok := dataset.Next(m.dataset)
 	if !ok {
-		return emptyState("no hay eventos próximos", "corre: go run ./cmd/ufc-sync")
+		return emptyState("No upcoming events", "Run: go run ./cmd/ufc-sync")
 	}
 	cursor := clampCursor(m.cursor, len(e.Card))
 
@@ -132,20 +132,20 @@ func upcomingPanel(e model.Event, width, height int, compact bool) string {
 	var content []string
 	if compact {
 		content = []string{
-			headerLine("PRÓXIMO EVENTO", countdown(days), iw),
+			headerLine("NEXT EVENT", countdown(days), iw),
 			styleTitle.Render(truncate(e.Name, iw)),
 			styleValue.Render(truncate(dateLong(e.Date), iw)),
 			styleMuted.Render(truncate(e.Location, iw)),
 		}
 	} else {
 		content = []string{
-			headerLine("PRÓXIMO EVENTO", "", iw),
+			headerLine("NEXT EVENT", "", iw),
 			"",
 			styleTitle.Render(truncate(e.Name, iw)),
 			styleAccent.Render(countdown(days)),
 			"",
-			field("fecha", truncate(dateLong(e.Date), max(1, iw-12))),
-			field("lugar", truncate(e.Location, max(1, iw-12))),
+			field("date", truncate(dateLong(e.Date), max(1, iw-12))),
+			field("location", truncate(e.Location, max(1, iw-12))),
 		}
 		if main, ok := dataset.MainEvent(e); ok {
 			box := mainEventBox(main.Fighters, main.WeightClass)
@@ -159,10 +159,10 @@ func upcomingPanel(e model.Event, width, height int, compact bool) string {
 
 func fightCardPanel(e model.Event, width, height, cursor int) string {
 	iw := max(1, width-6)
-	heading := headerLine("CARTELERA", fmt.Sprintf("%d peleas", len(e.Card)), iw)
+	heading := headerLine("FIGHT CARD", fmt.Sprintf("%d fights", len(e.Card)), iw)
 
 	if len(e.Card) == 0 {
-		content := []string{heading, "", styleMuted.Render("cartelera no anunciada")}
+		content := []string{heading, "", styleMuted.Render("Fight card not announced")}
 		return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
 	}
 
@@ -187,24 +187,24 @@ func fightCardPanel(e model.Event, width, height, cursor int) string {
 		content = append(content, fightRow(e.Card[i], i, i == cursor, nameW, weightW, iw))
 	}
 	if end-start < total {
-		hint := fmt.Sprintf("mostrando %d-%d de %d", start+1, end, total)
+		hint := fmt.Sprintf("Showing %d-%d of %d", start+1, end, total)
 		content = append(content, "", styleMuted.Render(hint))
 	}
 
 	return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
 }
 
-// -------------------------------------------------------------------- hoy
+// ---------------------------------------------------------------- tonight
 
 func (m Model) tonightView(width int) string {
 	lines := []string{
-		sectionHeader("HOY", "HORA LOCAL", width),
+		sectionHeader("TONIGHT", "LOCAL TIME", width),
 		"",
 	}
 
 	if e, ok := dataset.Tonight(m.dataset); ok {
 		lines = append(lines,
-			styleBadge.Render("HOY HAY PELEA"),
+			styleBadge.Render("FIGHTS TONIGHT"),
 			"",
 			styleTitle.Render(truncate(e.Name, width)),
 			styleMuted.Render(truncate(e.Location, width)),
@@ -214,13 +214,13 @@ func (m Model) tonightView(width int) string {
 			lines = append(lines, "", lipgloss.NewStyle().MaxWidth(width).Render(box))
 		}
 	} else {
-		lines = append(lines, styleTitle.Render("no hay pelea hoy"), "")
+		lines = append(lines, styleTitle.Render("No fights tonight"), "")
 		if next, has := dataset.Next(m.dataset); has {
 			lines = append(lines,
 				styleAccent.Render(countdown(daysUntil(next.Date))),
 				"",
-				field("próximo", truncate(next.Name, max(1, width-12))),
-				field("cuándo", truncate(fmt.Sprintf("%s  (en %s)", dateShort(next.Date), pluralDays(daysUntil(next.Date))), max(1, width-12))),
+				field("next", truncate(next.Name, max(1, width-12))),
+				field("when", truncate(fmt.Sprintf("%s  (in %s)", dateShort(next.Date), pluralDays(daysUntil(next.Date))), max(1, width-12))),
 			)
 		}
 	}
@@ -230,14 +230,14 @@ func (m Model) tonightView(width int) string {
 	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
 }
 
-// ------------------------------------------------------------- calendario
+// ------------------------------------------------------------- calendar
 
 const calendarHeader = 3
 
 func (m Model) calendarView(width int) string {
 	up := dataset.Upcoming(m.dataset)
 	if len(up) == 0 {
-		return emptyState("no hay eventos próximos", "corre: go run ./cmd/ufc-sync")
+		return emptyState("No upcoming events", "Run: go run ./cmd/ufc-sync")
 	}
 	cursor := clampCursor(m.cursor, len(up))
 
@@ -265,7 +265,7 @@ func (m Model) calendarView(width int) string {
 		start, end = window(len(lines), m.listRows(width, calendarHeader), cursorLine)
 	}
 
-	out := []string{sectionHeader("CALENDARIO", "PRÓXIMOS EVENTOS", width), ""}
+	out := []string{sectionHeader("CALENDAR", "UPCOMING EVENTS", width), ""}
 	out = append(out, lines[start:end]...)
 	out = append(out, "", positionLine("evento", cursor, len(up), 0, len(up), len(up)))
 
@@ -279,7 +279,7 @@ func calendarRow(e model.Event, selected bool, width int) string {
 		locW    = 24
 	)
 
-	count := "sin cartelera"
+	count := "No card"
 	if n := len(e.Card); n > 0 {
 		count = announce(n)
 	}
@@ -309,12 +309,12 @@ func calendarRow(e model.Event, selected bool, width int) string {
 
 func announce(n int) string {
 	if n == 1 {
-		return "1 pelea"
+		return "1 fight"
 	}
-	return fmt.Sprintf("%d peleas", n)
+	return fmt.Sprintf("%d fights", n)
 }
 
-// -------------------------------------------------------------- cartelera
+// -------------------------------------------------------------- fight card
 
 const cardHeader = 4
 
@@ -437,17 +437,17 @@ func eventMeta(e model.Event) string {
 func (m Model) cardView(width int) string {
 	e, ok := dataset.Next(m.dataset)
 	if !ok {
-		return emptyState("no hay eventos próximos", "corré: go run ./cmd/ufc-sync")
+		return emptyState("No upcoming events", "Run: go run ./cmd/ufc-sync")
 	}
 	if len(e.Card) == 0 {
-		return emptyState(e.Name, "cartelera no anunciada")
+		return emptyState(e.Name, "Fight card not announced")
 	}
 
 	cursor := clampCursor(m.cursor, len(e.Card))
 	nameW, weightW := cardColumns(e, width)
 
 	lines := []string{
-		sectionHeader("CARTELERA", fmt.Sprintf("%d peleas - %s", len(e.Card), e.Name), width),
+		sectionHeader("FIGHT CARD", fmt.Sprintf("%d fights - %s", len(e.Card), e.Name), width),
 		styleMuted.Render(truncate(eventMeta(e), width)),
 		"",
 	}
@@ -462,7 +462,7 @@ func (m Model) cardView(width int) string {
 	return lipgloss.NewStyle().Width(width).Render(lipgloss.JoinVertical(lipgloss.Left, lines...))
 }
 
-// ------------------------------------------------------------- resultados
+// ------------------------------------------------------------- results
 
 const (
 	resultsHeader = 3
@@ -472,7 +472,7 @@ const (
 func (m Model) resultsView(width int) string {
 	events := dataset.RecentResults(m.dataset, resultsLimit)
 	if len(events) == 0 {
-		return emptyState("sin resultados", "corré: go run ./cmd/ufc-sync")
+		return emptyState("No results", "Run: go run ./cmd/ufc-sync")
 	}
 
 	cursor := clampCursor(m.cursor, len(events))
@@ -485,7 +485,7 @@ func (m Model) resultsView(width int) string {
 	}
 
 	lines := []string{
-		sectionHeader("RESULTADOS", "ÚLTIMOS PRIMERO", listW),
+		sectionHeader("RESULTS", "NEWEST FIRST", listW),
 		"",
 	}
 
@@ -533,7 +533,7 @@ func resultDetailPanel(e model.Event, width, height int) string {
 	iw := max(1, width-6)
 
 	content := []string{
-		headerLine("DETALLE", dateShort(e.Date), iw),
+		headerLine("DETAILS", dateShort(e.Date), iw),
 		"",
 		styleTitle.Render(truncate(e.Name, iw)),
 		styleMuted.Render(truncate(e.Location, iw)),
@@ -549,10 +549,10 @@ func resultDetailPanel(e model.Event, width, height int) string {
 		content = append(content, fightResultLine(f, iw))
 	}
 	if shown < len(e.Card) {
-		content = append(content, styleDim.Render(fmt.Sprintf("+ %d peleas más", len(e.Card)-shown)))
+		content = append(content, styleDim.Render(fmt.Sprintf("+ %d more fights", len(e.Card)-shown)))
 	}
 	if len(e.Card) == 0 {
-		content = append(content, styleMuted.Render("sin cartelera registrada"))
+		content = append(content, styleMuted.Render("No card data available"))
 	}
 
 	return panelStyleH(width, height, false).Render(lipgloss.JoinVertical(lipgloss.Left, content...))
@@ -618,20 +618,20 @@ func headlineResult(e model.Event) string {
 }
 
 func positionLine(noun string, cursor, total, start, end, shown int) string {
-	pos := fmt.Sprintf("%s %d de %d", noun, cursor+1, total)
+	pos := fmt.Sprintf("%s %d of %d", noun, cursor+1, total)
 	if start > 0 || end < shown {
-		pos += fmt.Sprintf("   mostrando %d-%d", start+1, end)
+		pos += fmt.Sprintf("   showing %d-%d", start+1, end)
 	}
 	if total > 1 {
-		pos += "   ↑/↓ moverse"
+		pos += "   ↑/↓ move"
 	}
 	return styleMuted.Render(pos)
 }
 
 func resultCursorLine(cursor, total, start, end int) string {
-	return positionLine("evento", cursor, total, start, end, total)
+	return positionLine("event", cursor, total, start, end, total)
 }
 
 func cursorLine(cursor, total, start, end int) string {
-	return positionLine("pelea", cursor, total, start, end, total)
+	return positionLine("fight", cursor, total, start, end, total)
 }

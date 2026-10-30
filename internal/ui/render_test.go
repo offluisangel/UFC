@@ -196,7 +196,7 @@ func TestNoViewShowsATimeOfDay(t *testing.T) {
 		if m := clock.FindString(out); m != "" {
 			t.Errorf("view %v renders a time of day (%q):\n%s", viewNames[v], m, out)
 		}
-		if strings.Contains(out, "inicio") {
+		if strings.Contains(out, "start time") {
 			t.Errorf("view %v still renders an %q field:\n%s", viewNames[v], "inicio", out)
 		}
 		if strings.Contains(out, "0001-01-01") {
@@ -208,7 +208,7 @@ func TestNoViewShowsATimeOfDay(t *testing.T) {
 func TestErrorViewRenders(t *testing.T) {
 	m := Model{err: os.ErrNotExist, width: 80, height: 30}
 	out := renderAt(t, m, 80, 30)
-	if !strings.Contains(out, "ufc") || !strings.Contains(out, "q para salir") {
+	if !strings.Contains(out, "ufc") || !strings.Contains(out, "q to quit") {
 		t.Fatalf("error view not informative:\n%s", out)
 	}
 	t.Logf("\n===== error =====\n%s", out)
@@ -299,7 +299,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestPadMeasuresColumnsNotBytes(t *testing.T) {
-	for _, label := range []string{"fecha", "lugar", "inicio", "cuándo", "próximo"} {
+	for _, label := range []string{"date", "location", "start", "when", "next"} {
 		if got := lipgloss.Width(pad(label, 12)); got != 12 {
 			t.Errorf("pad(%q, 12) is %d columns, want 12", label, got)
 		}
@@ -334,15 +334,15 @@ func TestFightRowNeverExceedsWidth(t *testing.T) {
 }
 
 func TestCursorLine(t *testing.T) {
-	if got := cursorLine(0, 13, 0, 13); !strings.Contains(got, "pelea 1 de 13") {
+	if got := cursorLine(0, 13, 0, 13); !strings.Contains(got, "fight 1 of 13") {
 		t.Errorf("missing position: %q", got)
 	}
 
 	got := cursorLine(12, 13, 8, 13)
-	if !strings.Contains(got, "pelea 13 de 13") || !strings.Contains(got, "mostrando 9-13") {
+	if !strings.Contains(got, "fight 13 of 13") || !strings.Contains(got, "showing 9-13") {
 		t.Errorf("scrolled footer incomplete: %q", got)
 	}
-	if got := cursorLine(0, 1, 0, 1); strings.Contains(got, "moverse") {
+	if got := cursorLine(0, 1, 0, 1); strings.Contains(got, "move") {
 		t.Errorf("single-fight card offers to move: %q", got)
 	}
 }
@@ -369,7 +369,7 @@ func TestCardViewRenders(t *testing.T) {
 	if !strings.Contains(out, "☆") {
 		t.Errorf("main event not flagged:\n%s", out)
 	}
-	if !strings.Contains(out, "pelea 1 de") {
+	if !strings.Contains(out, "fight 1 of") {
 		t.Errorf("missing position counter:\n%s", out)
 	}
 	t.Logf("\n===== cartelera =====\n%s", out)
@@ -430,7 +430,7 @@ func TestCardViewFitsWindow(t *testing.T) {
 				t.Errorf("height %d line %d: %d columns", h, i+1, w)
 			}
 		}
-		if !strings.Contains(out, fmt.Sprintf("pelea %d de %d", len(e.Card), len(e.Card))) {
+		if !strings.Contains(out, fmt.Sprintf("fight %d of %d", len(e.Card), len(e.Card))) {
 			t.Errorf("height %d: last fight not scrolled into view:\n%s", h, out)
 		}
 	}
@@ -438,7 +438,7 @@ func TestCardViewFitsWindow(t *testing.T) {
 	for _, h := range []int{minCardHeight - 1, 12, 10, 5, 1} {
 		m := Model{dataset: ds, current: viewCard}
 		out := renderAt(t, m, 80, h)
-		if !strings.Contains(out, "pelea 1 de") {
+		if !strings.Contains(out, "fight 1 of") {
 			t.Errorf("height %d: cart view lost its content:\n%s", h, out)
 		}
 	}
@@ -453,7 +453,7 @@ func TestCardViewEmptyCard(t *testing.T) {
 	m := Model{dataset: ds, current: viewCard}
 	out := renderAt(t, m, 80, 30)
 
-	if !strings.Contains(out, "cartelera no anunciada") {
+	if !strings.Contains(out, "Fight card not announced") {
 		t.Fatalf("expected empty-card message, got:\n%s", out)
 	}
 	if m := press(t, m, "down"); m.cursor != 0 {
@@ -500,7 +500,7 @@ func TestHelpLineDegradesWithoutLosingQuit(t *testing.T) {
 		for v := range viewNames {
 			m := Model{width: w, height: 30, current: view(v)}
 			got := stripANSI(m.helpView())
-			if !strings.Contains(got, "q salir") {
+			if !strings.Contains(got, "q quit") {
 				t.Errorf("width %d, view %s: lost the quit hint: %q", w, viewNames[v], got)
 			}
 			if got := lipgloss.Width(m.helpView()); got > w && w >= 20 {
@@ -523,13 +523,13 @@ func TestHelpLineShowsCardKeysOnCardView(t *testing.T) {
 	ds := testDataset(t)
 	m := Model{dataset: ds, width: 80, height: 30}
 
-	if got := m.helpView(); !strings.Contains(got, "←/→ cambiar") {
+	if got := m.helpView(); !strings.Contains(got, "←/→ switch views") {
 		t.Errorf("non-card view lost the tab hint: %q", got)
 	}
-	if got := press(t, m, "4").helpView(); !strings.Contains(got, "↑/↓ peleas") {
+	if got := press(t, m, "4").helpView(); !strings.Contains(got, "↑/↓ fights") {
 		t.Errorf("card view does not advertise the fight keys: %q", got)
 	}
-	if got := press(t, m, "5").helpView(); !strings.Contains(got, "↑/↓ eventos") {
+	if got := press(t, m, "5").helpView(); !strings.Contains(got, "↑/↓ events") {
 		t.Errorf("results view does not advertise the event keys: %q", got)
 	}
 }
@@ -541,7 +541,7 @@ func TestResultsViewRenders(t *testing.T) {
 	if !strings.Contains(out, "▸") {
 		t.Errorf("no cursor marker on the first event:\n%s", out)
 	}
-	if !strings.Contains(out, "evento 1 de 6") {
+	if !strings.Contains(out, "event 1 of 6") {
 		t.Errorf("missing position counter:\n%s", out)
 	}
 	// The headline result is the reason this view exists.
@@ -608,7 +608,7 @@ func TestSelectedAndUnselectedRowsShareTheirColumns(t *testing.T) {
 	sel := stripANSI(resultRow(e, true, 80))
 	unsel := stripANSI(resultRow(e, false, 80))
 
-	const date = "jue, 3 sep"
+	const date = "Thu, 3 Sep"
 	si, ui := strings.Index(sel, date), strings.Index(unsel, date)
 	if si < 0 || ui < 0 {
 		t.Fatalf("date missing from a row:\n%q\n%q", sel, unsel)
@@ -644,7 +644,7 @@ func TestResultsViewFitsWindow(t *testing.T) {
 				t.Errorf("height %d line %d: %d columns", h, i+1, w)
 			}
 		}
-		if !strings.Contains(out, "evento 20 de 20") {
+		if !strings.Contains(out, "event 20 of 20") {
 			t.Errorf("height %d: last event not scrolled into view:\n%s", h, out)
 		}
 	}
@@ -660,7 +660,7 @@ func TestResultsViewEmpty(t *testing.T) {
 	m := Model{dataset: ds, current: viewResults, width: 80, height: 30}
 	out := renderAt(t, m, 80, 30)
 
-	if !strings.Contains(out, "sin resultados") {
+	if !strings.Contains(out, "No results") {
 		t.Errorf("expected an empty-state message, got:\n%s", out)
 	}
 }
@@ -732,7 +732,7 @@ func TestUnannouncedCardStaysVisibleInEveryView(t *testing.T) {
 		for _, w := range []int{100, 80, 60} {
 			m := Model{dataset: ds, current: view(v)}
 			out := renderAt(t, m, w, 30)
-			if name != "resultados" && !strings.Contains(out, "UFC 335") {
+			if name != "results" && !strings.Contains(out, "UFC 335") {
 				t.Errorf("view %q at width %d hides an event that is on the calendar:\n%s", name, w, out)
 			}
 			for i, line := range strings.Split(out, "\n") {
@@ -744,7 +744,7 @@ func TestUnannouncedCardStaysVisibleInEveryView(t *testing.T) {
 	}
 
 	m := Model{dataset: ds, current: viewCard}
-	if out := renderAt(t, m, 80, 30); !strings.Contains(out, "cartelera no anunciada") {
+	if out := renderAt(t, m, 80, 30); !strings.Contains(out, "Fight card not announced") {
 		t.Errorf("card view should explain the empty card, got:\n%s", out)
 	}
 }

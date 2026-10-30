@@ -14,16 +14,16 @@ func Load(path string) (model.Dataset, error) {
 	buf, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return model.Dataset{}, fmt.Errorf("no hay dataset en %s (corré: go run ./cmd/ufc-sync)", path)
+			return model.Dataset{}, fmt.Errorf("no dataset found at %s (run: go run ./cmd/ufc-sync)", path)
 		}
 		return model.Dataset{}, err
 	}
 	var ds model.Dataset
 	if err := json.Unmarshal(buf, &ds); err != nil {
-		return model.Dataset{}, fmt.Errorf("no se pudo leer %s: %w", path, err)
+		return model.Dataset{}, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 	if len(ds.Events) == 0 {
-		return model.Dataset{}, fmt.Errorf("el dataset %s no tiene eventos (corré: go run ./cmd/ufc-sync)", path)
+		return model.Dataset{}, fmt.Errorf("dataset %s has no events (run: go run ./cmd/ufc-sync)", path)
 	}
 	return ds, nil
 }

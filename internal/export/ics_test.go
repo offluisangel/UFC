@@ -54,9 +54,9 @@ func TestICSDescribesTheEvent(t *testing.T) {
 	for _, want := range []string{
 		`SUMMARY:UFC 333: Volkanovski vs. Evloev`,
 		`LOCATION:Abu Dhabi\, Abu Dhabi\, United Arab Emirates`,
-		`Pelea estelar: Alexander Volkanovski vs Movsar Evloev (Featherweight)`,
-		`2 peleas anunciadas.`,
-		`Horario no incluido`,
+		`Main event: Alexander Volkanovski vs Movsar Evloev (Featherweight)`,
+		`2 fights announced.`,
+		`Event time not included`,
 	} {
 		if !strings.Contains(unfold(out), want) {
 			t.Errorf("missing %q in:\n%s", want, out)
@@ -76,10 +76,10 @@ func TestICSUnannouncedCard(t *testing.T) {
 	e := sampleEvent()
 	e.Card = nil
 	out := unfold(string(ICS(e, stamp)))
-	if !strings.Contains(out, "Cartelera no anunciada.") {
+	if !strings.Contains(out, "Fight card not announced.") {
 		t.Errorf("unannounced card not mentioned:\n%s", out)
 	}
-	if strings.Contains(out, "Pelea estelar") {
+	if strings.Contains(out, "Main event") {
 		t.Errorf("invented a main event:\n%s", out)
 	}
 }

@@ -33,7 +33,7 @@ func TestExportKeyWritesTheNextEvent(t *testing.T) {
 		t.Errorf("exported more than the next event:\n%s", buf)
 	}
 
-	if !m.noticeOK || !strings.Contains(m.helpView(), "guardado") {
+	if !m.noticeOK || !strings.Contains(m.helpView(), "Saved") {
 		t.Errorf("no confirmation shown: %q", stripANSI(m.helpView()))
 	}
 
@@ -59,7 +59,7 @@ func TestExportKeyWithoutUpcomingEvent(t *testing.T) {
 	if files, _ := filepath.Glob(filepath.Join(dir, "*.ics")); len(files) != 0 {
 		t.Errorf("wrote %v with nothing to export", files)
 	}
-	if !strings.Contains(stripANSI(m.helpView()), "no hay evento") {
+	if !strings.Contains(stripANSI(m.helpView()), "No upcoming event") {
 		t.Errorf("no explanation shown: %q", stripANSI(m.helpView()))
 	}
 }
@@ -68,8 +68,8 @@ func TestExportKeyIsAdvertisedWhereItApplies(t *testing.T) {
 	ds := resultsDataset(t, 2)
 	for v, name := range viewNames {
 		got := stripANSI(Model{dataset: ds, current: view(v), width: 100, height: 30}.helpView())
-		want := name == "próximo" || name == "hoy" || name == "cartelera"
-		if has := strings.Contains(got, "e exportar"); has != want {
+		want := name == "next" || name == "tonight" || name == "card"
+		if has := strings.Contains(got, "e export"); has != want {
 			t.Errorf("view %s: export hint present=%v, want %v: %q", name, has, want, got)
 		}
 	}
