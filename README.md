@@ -41,22 +41,21 @@ The export includes the next event as an **all-day** calendar entry. Event title
 
 ## Install
 
-Requires Go 1.27 or later.
+Install [Go 1.27 or later](https://go.dev/doc/install), then run the commands below using Go's default installation directory.
 
-```sh
+### Windows (PowerShell)
+
+```powershell
 go install github.com/offluisangel/UFC/cmd/ufc@latest
 ufc tui
 ```
 
-Go installs the executable to `GOBIN`, or to `GOPATH/bin` if `GOBIN` is not set. Make sure that directory is on your `PATH`. On Windows, the executable is named `ufc.exe`. Run `go install` again to update.
-
-The app stores its cache at `data/events.json`, relative to the directory from which you run it. To sync event data manually:
+### Linux
 
 ```sh
-ufc-sync
+go install github.com/offluisangel/UFC/cmd/ufc@latest
+~/go/bin/ufc tui
 ```
-
-On Windows, download and extract the ZIP release, then run `ufc.exe tui` from that folder or a terminal opened there.
 
 ## Development
 
