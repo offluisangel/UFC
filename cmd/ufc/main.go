@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/offluisangel/UFC/internal/apppaths"
 	"github.com/offluisangel/UFC/internal/dataset"
 	"github.com/offluisangel/UFC/internal/fetch"
 	"github.com/offluisangel/UFC/internal/ui"
@@ -35,7 +36,7 @@ func main() {
 		os.Exit(2)
 	}
 	var (
-		data    = flag.String("data", "data/events.json", "dataset JSON path")
+		data    = flag.String("data", "", "dataset JSON path (default: per-user cache)")
 		force   = flag.Bool("sync", false, "force a sync before starting")
 		noSync  = flag.Bool("no-sync", false, "never sync automatically")
 		verbose = flag.Bool("v", false, "verbose sync output")
@@ -48,13 +49,18 @@ func main() {
 		os.Exit(2)
 	}
 
-	ds, loadErr := dataset.Load(*data)
+	dataPath, err := apppaths.DataPath(*data)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	ds, loadErr := dataset.Load(dataPath)
 
 	if !*noSync {
 		stale := loadErr != nil || time.Since(ds.SyncedAt) > staleAfter
 		if *force || stale {
 			fmt.Println("Syncing with ufcstats...")
-			synced, err := fetch.Sync(fetch.Options{OutPath: *data, Verbose: *verbose})
+			synced, err := fetch.Sync(fetch.Options{OutPath: dataPath, Verbose: *verbose})
 			switch {
 			case err != nil && loadErr != nil:
 				fmt.Fprintln(os.Stderr, "Sync failed and no cached dataset is available:", err)

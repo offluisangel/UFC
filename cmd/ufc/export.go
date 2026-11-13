@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/offluisangel/UFC/internal/apppaths"
 	"github.com/offluisangel/UFC/internal/dataset"
 	"github.com/offluisangel/UFC/internal/export"
 )
@@ -14,7 +15,7 @@ import (
 func runExport(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("export", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	data := fs.String("data", "data/events.json", "dataset JSON path")
+	data := fs.String("data", "", "dataset JSON path (default: per-user cache)")
 	out := fs.String("o", "", "output file; use - for stdout (default: a name based on the event)")
 	fs.Usage = func() {
 		fmt.Fprintln(stderr, "Usage: ufc export [options]")
@@ -25,7 +26,12 @@ func runExport(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	ds, err := dataset.Load(*data)
+	dataPath, err := apppaths.DataPath(*data)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 1
+	}
+	ds, err := dataset.Load(dataPath)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 1
