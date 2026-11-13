@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    uses: ./.github/workflows/release-windows.yml
+  release:
+    needs: windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Test
+        run: go test ./...
+      - name: Test Linux installer
+        run: sh scripts/test-install.sh
+      - name: Build all release assets and a single checksum manifest
+        env:
+          UFC_VERSION: ${{ github.ref_name }}
+        run: sh scripts/package-release.sh dist
+      - name: Check release assets
+        run: sh scripts/test-release-assets.sh dist
+      - uses: softprops/action-gh-release@v2
+        with:
+          fail_on_unmatched_files: true
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
