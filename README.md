@@ -1,6 +1,6 @@
 # UFC TUI
 
-A terminal UI for browsing upcoming UFC events and recent results. No account, database, or API key required: the scraper fetches event data and saves it as JSON, and the app reads that local cache.
+Browse upcoming UFC events, fight cards, and recent results from your terminal.
 
 ## Next Event
 ![UFC TUI screenshot](assets/ss1.png)
@@ -8,85 +8,49 @@ A terminal UI for browsing upcoming UFC events and recent results. No account, d
 ## Results
 ![UFC TUI screenshot](assets/ss2.png)
 
-## Features
-
-- **Next** — see the next event's date, location, and main event.
-- **Tonight** — check whether an event is scheduled for today, or see when the next one takes place.
-- **Calendar** — browse upcoming events grouped by month, with fight-card counts.
-- **Fight card** — browse the next event's bouts, with the main event highlighted.
-- **Results** — review up to 20 completed events, newest first, with the main-event outcome.
-- **Calendar export** — export the next event as an all-day `.ics` file.
-- **Local cache** — browse saved event data without an account or API key.
-
-## Keyboard shortcuts
-
-| Key | Action |
-|---|---|
-| `1` … `5` | Jump to a view. |
-| `←` `→` | Switch views. Also `h` / `l` and `tab` / `shift+tab`. |
-| `↑` `↓` | Move through fights or events. Also `k` / `j`. |
-| `e` | Export the next event to `.ics` (Next, Tonight, and Fight card views). |
-| `g` `G` | Jump to the top or bottom of a list. Also `home` / `end`. |
-| `q` | Quit. Also `ctrl+c` and `esc`. |
-
-## Export to a calendar
-
-```sh
-ufc export            # save to a filename based on the event
-ufc export -o -       # write the .ics file to stdout
-ufc export -o my.ics  # choose an output filename
-```
-
-The export includes the next event as an **all-day** calendar entry. Event titles, locations, and fighter names remain as provided by UFCStats; generated descriptions are in English.
-
 ## Install
 
-Install [Go 1.27 or later](https://go.dev/doc/install), then run the commands below using Go's default installation directory.
+These commands require a [release](https://github.com/offluisangel/UFC/releases) containing the installers. No Go installation is needed.
+
+### Linux / Omarchy
+
+Download and inspect the installer, then install to `/usr/local/bin`:
+
+```sh
+curl -fLO https://github.com/offluisangel/UFC/releases/latest/download/install.sh
+less install.sh
+sudo sh install.sh --system
+```
 
 ### Windows (PowerShell)
 
 ```powershell
-go install github.com/offluisangel/UFC/cmd/ufc@latest
+Invoke-WebRequest https://github.com/offluisangel/UFC/releases/latest/download/install.ps1 -OutFile install.ps1
+Get-Content .\install.ps1
+.\install.ps1 -AddToPath
+```
+
+## Use
+
+From any directory:
+
+```sh
 ufc tui
 ```
 
-### Linux
+Internet access is needed to fetch fresh event data; saved data can be browsed offline.
 
-```sh
-go install github.com/offluisangel/UFC/cmd/ufc@latest
-~/go/bin/ufc tui
-```
-
-## Development
-
-Tests use saved HTML fixtures and do not require network access.
-
-```sh
-go test ./...
-go test ./... -v
-go vet ./...
-gofmt -l .
-```
-
-## How it works
-
-```
-ufcstats.com
-     │  HTTP + proof-of-work challenge
-     ▼
-internal/fetch ──► data/events.json
-     │                 │
-     │                 ▼
-     └──────────► internal/dataset ──► internal/ui
-```
-
-| Package | Responsibility |
+| Key | Action |
 |---|---|
-| `cmd/ufc` | TUI entry point; decides whether to sync and starts Bubble Tea. |
-| `cmd/ufc-sync` | Manual sync entry point. |
-| `internal/fetch` | HTTP client, proof-of-work challenge, HTML parsing, deduplication, and JSON writing. |
-| `internal/dataset` | Queries over the loaded JSON: upcoming events, fight cards, and results. |
-| `internal/ui` | Bubble Tea model, views, and styles. |
-| `internal/model` | `Fight`, `Event`, `Dataset`, and date parsing. |
+| `1` … `5` | Jump to a view. |
+| `←` / `→` | Switch views. |
+| `↑` / `↓` | Move through fights or events. |
+| `e` | Export the next event to your calendar. |
+| `q` | Quit. |
 
-Built with [Bubble Tea](https://github.com/charmbracelet/bubbletea), [Lip Gloss](https://github.com/charmbracelet/lipgloss), and [goquery](https://github.com/PuerkitoBio/goquery).
+To export without opening the TUI:
+
+```sh
+ufc export
+ufc export -o my.ics
+```
