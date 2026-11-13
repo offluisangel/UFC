@@ -1,0 +1,22 @@
+name: Test installers
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check release publishing contract
+        run: sh scripts/test-release-assets.sh
+      - name: Test Linux installer
+        run: sh scripts/test-install.sh
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test Windows installer
+        shell: pwsh
+        run: ./scripts/test-install.ps1
