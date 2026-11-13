@@ -1,6 +1,9 @@
 .codegraph/
 node_modules/
 
+# local task tracking (never commit)
+/odd/
+
 # build
 bin/
 *.exe
