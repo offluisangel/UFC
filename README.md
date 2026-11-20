@@ -2,11 +2,9 @@
 
 Browse upcoming UFC events, fight cards, and recent results from your terminal.
 
-## Next Event
-![UFC TUI screenshot](assets/ss1.png)
+[Watch the 15-second demo (MP4)](assets/ufc-tui.mp4): launch `ufc tui` and switch between all five tabs.
 
-## Results
-![UFC TUI screenshot](assets/ss2.png)
+[![Upcoming UFC event and fight card in the terminal](assets/ss1.png)](assets/ufc-tui.mp4)
 
 ## Install
 
